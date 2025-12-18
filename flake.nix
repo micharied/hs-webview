@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     flake-utils.url = "github:numtide/flake-utils";
     webview = {
-      url = "github:webview/webview";
+      url = "github:micharied/webview?ref=fix-load-frameworks";
       flake = false;
     };
   };
