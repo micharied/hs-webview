@@ -1,0 +1,7 @@
+dist-newstyle/
+cabal.project.local
+result
+cbits/webview.cc
+cbits/include/
+
+.envrc
