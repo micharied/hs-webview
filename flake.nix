@@ -36,9 +36,15 @@
         };
       platformLibsFor = pkgs:
         if pkgs.stdenv.isDarwin then
-          [ pkgs.apple-sdk ]
+          {
+            buildInputs = [ pkgs.apple-sdk ];
+            pkgconfig = [ ];
+          }
         else
-          (with pkgs; [ gtk3 webkitgtk_4_1 pkgs.xorg.libXtst pkgs.xorg.libX11]);
+          (with pkgs; {
+            buildInputs = [ gtk3 webkitgtk_4_1 pkgs.xorg.libXtst pkgs.xorg.libX11 ];
+            pkgconfig = [ gtk3 webkitgtk_4_1 ];
+          });
       hsWebviewOverlay = final: prev:
         let
           syncWebviewCore = mkSyncWebviewCore final;
@@ -53,11 +59,14 @@
         {
           haskellPackages = prev.haskellPackages.extend (hself: hsuper: {
             hs-webview =
-              (hself.callPackage ./hs-webview.nix { src = hsWebviewSrc; }).overrideAttrs
-              (oldAttrs: {
-                dontWrapQtApps = true;
-                buildInputs = oldAttrs.buildInputs ++ platformLibs;
-              });
+              (hself.callPackage ./hs-webview.nix {
+                src = hsWebviewSrc;
+                platformPkgconfigDeps = platformLibs.pkgconfig;
+              }).overrideAttrs
+                (oldAttrs: {
+                  dontWrapQtApps = true;
+                  buildInputs = oldAttrs.buildInputs ++ platformLibs.buildInputs;
+                });
           });
         };
       overlays = [ hsWebviewOverlay ];
@@ -84,7 +93,7 @@
           packages = p: [ p.hs-webview ];
           buildInputs = [ pkgs.glib pkgs.cabal-install pkgs.pkg-config ]
             ++ (with pkgs.haskellPackages; [ haskell-language-server ghcid hlint hoogle fourmolu ]);
-          nativeBuildInputs = platformLibs ++ [ pkgs.pkg-config syncWebviewCore ];
+          nativeBuildInputs = platformLibs.buildInputs ++ [ pkgs.pkg-config syncWebviewCore ];
           shellHook = ''
             # Keep a sane coreutils/xargs ahead of bootstrap-tools.
             export PATH=${pkgs.findutils}/bin:${pkgs.coreutils}/bin:$(printf '%s\n' "$PATH" | tr : '\n' | sed '/bootstrap-tools/d' | paste -sd:)

@@ -1,4 +1,4 @@
-{ mkDerivation, base, gtk3, lib, scotty, text, webkitgtk_4_1, src ? ./. }:
+{ mkDerivation, base, lib, scotty, text, platformPkgconfigDeps ? [ ], src ? ./. }:
 mkDerivation {
   pname = "hs-webview";
   version = "0.1.0.0";
@@ -6,9 +6,9 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [ base ];
-  libraryPkgconfigDepends = [ gtk3 webkitgtk_4_1 ];
+  libraryPkgconfigDepends = platformPkgconfigDeps;
   executableHaskellDepends = [ base scotty text ];
-  executablePkgconfigDepends = [ gtk3 webkitgtk_4_1 ];
+  executablePkgconfigDepends = platformPkgconfigDeps;
   homepage = "https://github.com/micharied/hs-webview";
   description = "Minimal Haskell bindings for the webview library";
   license = lib.licenses.mit;
