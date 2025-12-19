@@ -33,7 +33,7 @@ library
     extra-libraries:   c++
     ld-options:        -framework Cocoa -framework WebKit
   else
-    pkgconfig-depends: gtk+-3.0, webkit2gtk-4.1
+    pkgconfig-depends: gtk+-3.0, webkit2gtk-4.1, x11
     extra-libraries:   stdc++
 
 executable demo
@@ -51,5 +51,5 @@ executable demo
     extra-libraries:   c++
     ld-options:        -framework Cocoa -framework WebKit
   else
-    pkgconfig-depends: gtk+-3.0, webkit2gtk-4.1
+    pkgconfig-depends: gtk+-3.0, webkit2gtk-4.1, x11
     extra-libraries:   stdc++

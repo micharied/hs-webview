@@ -38,7 +38,7 @@
         if pkgs.stdenv.isDarwin then
           [ pkgs.apple-sdk ]
         else
-          (with pkgs; [ gtk3 webkitgtk_4_1 ]);
+          (with pkgs; [ gtk3 webkitgtk_4_1 pkgs.xorg.libXtst pkgs.xorg.libX11]);
       hsWebviewOverlay = final: prev:
         let
           syncWebviewCore = mkSyncWebviewCore final;
@@ -53,8 +53,10 @@
         {
           haskellPackages = prev.haskellPackages.extend (hself: hsuper: {
             hs-webview =
-              (hself.callCabal2nix "hs-webview" hsWebviewSrc { }).overrideAttrs (old: {
-                buildInputs = (old.buildInputs or [ ]) ++ platformLibs;
+              (hself.callPackage ./hs-webview.nix { src = hsWebviewSrc; }).overrideAttrs
+              (oldAttrs: {
+                dontWrapQtApps = true;
+                buildInputs = oldAttrs.buildInputs ++ platformLibs;
               });
           });
         };
@@ -80,11 +82,17 @@
 
         devShells.default = pkgs.haskellPackages.shellFor {
           packages = p: [ p.hs-webview ];
-          buildInputs = platformLibs
-            ++ [ pkgs.cabal-install pkgs.pkg-config ]
+          buildInputs = [ pkgs.glib pkgs.cabal-install pkgs.pkg-config ]
             ++ (with pkgs.haskellPackages; [ haskell-language-server ghcid hlint hoogle fourmolu ]);
-          nativeBuildInputs = [ pkgs.pkg-config syncWebviewCore ];
+          nativeBuildInputs = platformLibs ++ [ pkgs.pkg-config syncWebviewCore ];
           shellHook = ''
+            # Keep a sane coreutils/xargs ahead of bootstrap-tools.
+            export PATH=${pkgs.findutils}/bin:${pkgs.coreutils}/bin:$(printf '%s\n' "$PATH" | tr : '\n' | sed '/bootstrap-tools/d' | paste -sd:)
+
+            # Avoid the giant NIX_CFLAGS_* that shuffles glibc ahead of libstdc++;
+            # let pkg-config/GHC supply include paths.
+            unset NIX_CFLAGS_COMPILE NIX_CFLAGS_LINK
+
             if [ ! -f cbits/webview.cc ]; then
               echo "Populating cbits/ from webview input..."
               sync-webview-core cbits
