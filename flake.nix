@@ -10,7 +10,13 @@
     };
   };
 
-  outputs = inputs@{ self, nixpkgs, flake-utils, webview }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      webview,
+    }:
     let
       systems = [
         "aarch64-darwin"
@@ -18,7 +24,8 @@
         "aarch64-linux"
         "x86_64-linux"
       ];
-      mkSyncWebviewCore = pkgs:
+      mkSyncWebviewCore =
+        pkgs:
         pkgs.writeShellApplication {
           name = "sync-webview-core";
           text = ''
@@ -34,18 +41,8 @@
             chmod -R u+w "''${dest}"
           '';
         };
-      platformLibsFor = pkgs:
-        if pkgs.stdenv.isDarwin then
-          {
-            buildInputs = [ pkgs.apple-sdk ];
-            pkgconfig = [ ];
-          }
-        else
-          (with pkgs; {
-            buildInputs = [ gtk3 webkitgtk_4_1 pkgs.xorg.libXtst pkgs.xorg.libX11 ];
-            pkgconfig = [ gtk3 webkitgtk_4_1 ];
-          });
-      hsWebviewOverlay = final: prev:
+      hsWebviewOverlay =
+        final: prev:
         let
           syncWebviewCore = mkSyncWebviewCore final;
           hsWebviewSrc = final.runCommand "hs-webview-src" { } ''
@@ -54,35 +51,39 @@
             cd $out
             ${syncWebviewCore}/bin/sync-webview-core cbits
           '';
-          platformLibs = platformLibsFor final;
         in
         {
-          haskellPackages = prev.haskellPackages.extend (hself: hsuper: {
-            hs-webview =
-              (hself.callPackage ./hs-webview.nix {
-                src = hsWebviewSrc;
-                platformPkgconfigDeps = platformLibs.pkgconfig;
-              }).overrideAttrs
-                (oldAttrs: {
-                  dontWrapQtApps = true;
-                  buildInputs = oldAttrs.buildInputs ++ platformLibs.buildInputs;
-                });
-          });
+          haskellPackages = prev.haskellPackages.extend (
+            hself: hsuper: {
+              hs-webview =
+                final.haskell.lib.compose.overrideCabal
+                  (drv: {
+                    __onlyPropagateKnownPkgConfigModules = true;
+                  })
+                  (
+                    (hself.callCabal2nix "hs-webview" hsWebviewSrc { }).overrideAttrs (oldAttrs: {
+                      dontWrapQtApps = true;
+                      buildInputs = oldAttrs.buildInputs ++ final.lib.optional final.stdenv.isDarwin final.apple-sdk;
+                    })
+                  );
+            }
+          );
         };
       overlays = [ hsWebviewOverlay ];
     in
-    flake-utils.lib.eachSystem systems (system:
+    flake-utils.lib.eachSystem systems (
+      system:
       let
         pkgs = import nixpkgs {
           inherit system;
           overlays = overlays;
         };
         syncWebviewCore = mkSyncWebviewCore pkgs;
-        platformLibs = platformLibsFor pkgs;
         hsWebview = pkgs.haskellPackages.hs-webview;
       in
       {
         packages.default = hsWebview;
+        legacyPackages = pkgs;
 
         apps.sync-webview = {
           type = "app";
@@ -91,9 +92,22 @@
 
         devShells.default = pkgs.haskellPackages.shellFor {
           packages = p: [ p.hs-webview ];
-          buildInputs = [ pkgs.glib pkgs.cabal-install pkgs.pkg-config ]
-            ++ (with pkgs.haskellPackages; [ haskell-language-server ghcid hlint hoogle fourmolu ]);
-          nativeBuildInputs = platformLibs.buildInputs ++ [ pkgs.pkg-config syncWebviewCore ];
+          buildInputs = [
+            pkgs.glib
+            pkgs.cabal-install
+            pkgs.pkg-config
+          ]
+          ++ (with pkgs.haskellPackages; [
+            haskell-language-server
+            ghcid
+            hlint
+            hoogle
+            fourmolu
+          ]);
+          nativeBuildInputs = [
+            pkgs.pkg-config
+            syncWebviewCore
+          ];
           shellHook = ''
             # Keep a sane coreutils/xargs ahead of bootstrap-tools.
             export PATH=${pkgs.findutils}/bin:${pkgs.coreutils}/bin:$(printf '%s\n' "$PATH" | tr : '\n' | sed '/bootstrap-tools/d' | paste -sd:)
@@ -108,7 +122,9 @@
             fi
           '';
         };
-      }) // {
+      }
+    )
+    // {
       overlays.default = nixpkgs.lib.composeManyExtensions overlays;
     };
 }
