@@ -59,7 +59,6 @@
                 final.haskell.lib.compose.overrideCabal
                   (drv: {
                     __onlyPropagateKnownPkgConfigModules = true;
-                    libraryPkgconfigDepends = drv.libraryPkgconfigDepends ++ [ final.SDL2 ];
                   })
                   (
                     (hself.callCabal2nix "hs-webview" hsWebviewSrc { }).overrideAttrs (oldAttrs: {

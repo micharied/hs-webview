@@ -35,8 +35,8 @@ library
     extra-libraries:   c++
     ld-options:        -framework Cocoa -framework WebKit
   else
-    pkgconfig-depends: gtk+-3.0, webkit2gtk-4.1, x11
-    extra-libraries:   stdc++, gtk-3, X11
+    pkgconfig-depends: gtk+-3.0, webkit2gtk-4.1, x11, sdl2
+    extra-libraries:   stdc++, gtk-3, X11, SDL2
 
 executable demo
   main-is:             Main.hs
@@ -54,5 +54,5 @@ executable demo
     extra-libraries:   c++
     ld-options:        -framework Cocoa -framework WebKit
   else
-    pkgconfig-depends: gtk+-3.0, webkit2gtk-4.1, x11
-    extra-libraries:   stdc++, gtk-3, X11
+    pkgconfig-depends: gtk+-3.0, webkit2gtk-4.1, x11, sdl2
+    extra-libraries:   stdc++, gtk-3, X11, SDL2
