@@ -107,6 +107,32 @@
             rm -f src/WebView/Raw/FunPtr.hs
           '';
         };
+      mkCheckBindings =
+        pkgs: regenBindings:
+        pkgs.writeShellApplication {
+          name = "check-bindings";
+          runtimeInputs = [
+            regenBindings
+            pkgs.coreutils
+            pkgs.diffutils
+          ];
+          text = ''
+            set -euo pipefail
+            root="''${1:-$PWD}"
+            if [ ! -f "''${root}/cbits/include/webview/webview.h" ]; then
+              echo "cbits/ is empty; run 'nix run .#sync-webview' first" >&2
+              exit 1
+            fi
+            tmp=$(mktemp -d)
+            trap 'rm -rf "''${tmp}"' EXIT
+            ln -s "''${root}/cbits" "''${tmp}/cbits"
+            mkdir -p "''${tmp}/src"
+            regen-bindings "''${tmp}"
+            diff -ru "''${root}/src/WebView/Raw"    "''${tmp}/src/WebView/Raw"
+            diff -u  "''${root}/src/WebView/Raw.hs" "''${tmp}/src/WebView/Raw.hs"
+            echo "generated bindings are up to date"
+          '';
+        };
     in
     flake-utils.lib.eachSystem systems (
       system:
@@ -117,6 +143,7 @@
         };
         syncWebviewCore = mkSyncWebviewCore pkgs;
         regenBindings = mkRegenBindings pkgs;
+        checkBindings = mkCheckBindings pkgs regenBindings;
         hsWebview = pkgs.haskellPackages.hs-webview;
       in
       {
@@ -131,6 +158,11 @@
         apps.regen-bindings = {
           type = "app";
           program = "${regenBindings}/bin/regen-bindings";
+        };
+
+        apps.check-bindings = {
+          type = "app";
+          program = "${checkBindings}/bin/check-bindings";
         };
 
         devShells.default = pkgs.haskellPackages.shellFor {
