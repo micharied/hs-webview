@@ -8,6 +8,10 @@
       url = "github:micharied/webview?ref=develop";
       flake = false;
     };
+    hs-bindgen = {
+      url = "github:well-typed/hs-bindgen";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -16,6 +20,7 @@
       nixpkgs,
       flake-utils,
       webview,
+      hs-bindgen,
     }:
     let
       systems = [
@@ -69,7 +74,39 @@
             }
           );
         };
-      overlays = [ hsWebviewOverlay ];
+      overlays = [
+        hs-bindgen.overlays.default
+        hsWebviewOverlay
+      ];
+      mkRegenBindings =
+        pkgs:
+        pkgs.writeShellApplication {
+          name = "regen-bindings";
+          runtimeInputs = [
+            pkgs.hs-bindgen-cli
+            pkgs.coreutils
+          ];
+          text = ''
+            set -euo pipefail
+            root="''${1:-$PWD}"
+            cd "''${root}"
+            rm -rf src/WebView/Raw src/WebView/Raw.hs
+            hs-bindgen-cli preprocess \
+              --unique-id io.github.micharied.hs-webview \
+              --hs-output-dir src \
+              --create-output-dirs \
+              --overwrite-files \
+              --module WebView.Raw \
+              --select-by-header-path 'webview/.*\.h' \
+              --enable-program-slicing \
+              --select-except-deprecated \
+              -I "''${root}/cbits/include" \
+              webview/webview.h
+            # We do not expose the FunPtr module; drop it to keep the cabal
+            # surface small.
+            rm -f src/WebView/Raw/FunPtr.hs
+          '';
+        };
     in
     flake-utils.lib.eachSystem systems (
       system:
@@ -79,6 +116,7 @@
           overlays = overlays;
         };
         syncWebviewCore = mkSyncWebviewCore pkgs;
+        regenBindings = mkRegenBindings pkgs;
         hsWebview = pkgs.haskellPackages.hs-webview;
       in
       {
@@ -88,6 +126,11 @@
         apps.sync-webview = {
           type = "app";
           program = "${syncWebviewCore}/bin/sync-webview-core";
+        };
+
+        apps.regen-bindings = {
+          type = "app";
+          program = "${regenBindings}/bin/regen-bindings";
         };
 
         devShells.default = pkgs.haskellPackages.shellFor {
@@ -107,6 +150,9 @@
           nativeBuildInputs = [
             pkgs.pkg-config
             syncWebviewCore
+            regenBindings
+            pkgs.hs-bindgen-cli
+            pkgs.hsBindgenHook
           ];
           shellHook = ''
             # Keep a sane coreutils/xargs ahead of bootstrap-tools.
