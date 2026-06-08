@@ -18,4 +18,8 @@ jobs:
       with:
         name: hs-webview
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+    - name: sync vendored C sources
+      run: nix run .#sync-webview
+    - name: check that generated bindings match the C headers
+      run: nix run .#check-bindings
     - run: nix build
