@@ -4,6 +4,7 @@ module Main (main) where
 
 import Control.Concurrent (forkIO)
 import Control.Monad (void)
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 import Web.Scotty (ScottyM, get, html, redirect, scotty)
 
@@ -17,11 +18,12 @@ main = do
   void . forkIO $ runServer
   putStrLn "Starte WebView ..."
   withWebView False $ \wv -> do
-    setTitle wv "hs-webview demo"
-    setSize wv 640 400 HintNone
-    enableReloadShortcuts wv
-    navigate wv helloOneUrl
-    run wv
+    _ <- setTitle wv "hs-webview demo"
+    _ <- setSize wv 640 400 HintNone
+    _ <- enableReloadShortcuts wv
+    _ <- navigate wv (T.pack helloOneUrl)
+    _ <- run wv
+    pure ()
 
 runServer :: IO ()
 runServer = do
